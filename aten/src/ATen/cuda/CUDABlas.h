@@ -199,7 +199,7 @@ void vdot<c10::complex<float>>(CUDABLAS_DOT_ARGTYPES(c10::complex<float>));
 template <>
 void vdot<c10::complex<double>>(CUDABLAS_DOT_ARGTYPES(c10::complex<double>));
 
-// This guards blocks use of geqrfBatched, getrfBatched, getriBatched on platforms other than cuda
+// This guards blocks use of geqrfBatched, getriBatched on platforms other than cuda
 #ifdef CUDART_VERSION
 
 #define CUDABLAS_GEQRF_BATCHED_ARGTYPES(Dtype)                   \
