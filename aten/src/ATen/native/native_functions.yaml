@@ -10318,6 +10318,57 @@
 - func: special_erfinv.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
   python_module: special
 
+- func: special_hyp2f1(Tensor self, Tensor a, Tensor b, Tensor c) -> Tensor
+  python_module: special
+  variants: function
+  structured_delegate: special_hyp2f1.out
+
+- func: special_hyp2f1.a_scalar(Tensor self, Scalar a, Tensor b, Tensor c) -> Tensor
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.b_scalar(Tensor self, Tensor a, Scalar b, Tensor c) -> Tensor
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.c_scalar(Tensor self, Tensor a, Tensor b, Scalar c) -> Tensor
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.out(Tensor self, Tensor a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  python_module: special
+  structured: True
+  structured_inherits: TensorIteratorBase
+  dispatch:
+    CPU, CUDA: special_hyp2f1_out
+
+- func: special_hyp2f1.a_scalar_out(Tensor self, Scalar a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  python_module: special
+  structured: True
+  structured_inherits: TensorIteratorBase
+  dispatch:
+    CPU, CUDA: special_hyp2f1_out
+
+- func: special_hyp2f1.b_scalar_out(Tensor self, Tensor a, Scalar b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  python_module: special
+  structured: True
+  structured_inherits: TensorIteratorBase
+  dispatch:
+    CPU, CUDA: special_hyp2f1_out
+
+- func: special_hyp2f1.c_scalar_out(Tensor self, Tensor a, Tensor b, Scalar c, *, Tensor(a!) out) -> Tensor(a!)
+  python_module: special
+  structured: True
+  structured_inherits: TensorIteratorBase
+  dispatch:
+    CPU, CUDA: special_hyp2f1_out
+
 - func: special_ndtr(Tensor self) -> Tensor
   python_module: special
   variants: function

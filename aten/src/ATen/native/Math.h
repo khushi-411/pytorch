@@ -1606,6 +1606,222 @@ static inline C10_HOST_DEVICE T calc_ndtri(T y0) {
   return x;
 }
 
+/* The next function is taken from https://github.com/scipy/scipy/blob/main/scipy/special/cephes/hyp2f1.c.
+ *
+ * Gauss hypergeometric function1  F
+ * 		                  2 1
+ *
+ * EQUATION:
+ *
+ * y = hyp2f1( a, b, c, x );
+ *
+ *
+ * FORMULA:
+ *
+ * hyp2f1( a, b, c, x ) =   F ( a, b; c; x)
+ *                         2 1 
+ *
+ *                            inf. (a)  (b)      n
+ *                             --     n    n  (x)
+ *                      =      >  ----------- ---
+ *                             --      (c)    (n)!
+ *                            k = 0       n
+ *
+ *                                      Here: (q)_n is the Pochhammer symbol, defined as:
+ *
+ *                                      	     __ 1;                    if n = 0
+ *                                                  |
+ *                                          (q)   = |
+ *                                             n    |
+ *                                             	    |__ q(q+1)...(q+n-1);     if n > 0
+ *
+ *
+ *                            inf.
+ *                             -- a(a+1)...(a+k) b(b+1)...(b+k)   k+1
+ *                      = 1 +  >  -----------------------------  x
+ *                             --      c(c+1)...(c+k) (k+1)!
+ *                            k = 0
+ *
+ *                                                              2
+ *                           	    ab  x      a(a+1)b(b+1)  (x)
+ *                      =     1 +  ---- -- +  -------------- --- + ....
+ *                                   c  1!        c(c+1)      2!
+ *
+ * DESCRIPTION:
+ *
+ * The following cases are addressed here:
+ *
+ * Case 1: If a < 0, b < 0, and c < 0; i.e. if a, b, c are negative integers.
+ *
+ * Case 2: If c - a < 0, and c - b < 0; Linear Transformation
+ *
+ * Case 3: If c = a or c = b; Special case
+ *
+ * Case 4: If x is near to +1; Linear Transformation.
+ *
+ * Case 5: If x < -0.5
+ *
+ * Case 6: If x > 0.5 and c - a - b is an integer.
+ *
+ * Case 7: Recurrence on c to make c - a - b > 0
+ *
+ * Case 8: If x < -1; AMS 15.3.7 transformation (Thanks to Travis Oliphant)
+ * 		 valid for b,a,c,(b-a) != integer and (c-a), (c-b) != negative integer
+ *
+ * Case 9: If x >= 1; Rejected
+ *
+ * NOTE: The parameters a, b, c are considered to be integer
+ *       valued, if they are within 1.0e-14 of the nearest integer
+ *       (1.0e-13 for IEEE arithmetic).
+ *
+ */
+
+template <typename T>
+C10_HOST_DEVICE static inline typename std::enable_if<std::is_floating_point<T>::value, T>::type
+calc_hyp2f1(T a, T b, T c, T x)
+{
+  double d, d1, d2, e;
+  double p, q, r, s, y, ax;
+  double ia, ib, ic, id, err;
+  double t1;
+  int i, aid;
+  int neg_int_a = 0, neg_int_b = 0;
+  int neg_int_ca_or_cb = 0;
+
+  err = 0.0;
+  ax = std::fabs(a);
+  s = 1.0 - x;
+  ia = std::round(a);
+  ib = std::round(b);
+
+  if (x == 0.0) {
+      return 1.0;
+  }
+
+  d = c - a - b;
+  id = std::round(d);
+
+  if ((a == 0 || b == 0) && c != 0) {
+    return 1.0;
+  }
+
+  if (a <= 0 && std::fabs(a - ia) < EPS) { /* a is a negative integer */
+    neg_int_a = 1;
+  }
+
+  if (b <= 0 && std::fabs(b - ib) < EPS) { /* b is a negative integer */
+    neg_int_b = 1;
+  }
+
+  if (d <= -1 && !(std::fabs(d - id) > EPS && s < 0)
+      && !(neg_int_a || neg_int_b)) {
+    return std::pow(s, d) * calc_hyp2f1(c - a, c - b, c, x);
+  }
+
+  if (d <= 0 && x == 1 && !(neg_int_a || neg_int_b))
+    return std::numeric_limits<scalar_t>::infinity();
+
+  if (ax < 1.0 || x == -1.0) {
+    if (std::fabs(b - c) < EPS) {
+	if (neg_int_b) {
+	    y = hyp2f1_neg_c_equal_bc(a, b, x);
+	} else {
+	    y = std::pow(s, -a);
+	}
+	goto hypdon;
+    }
+    if (std::fabs(a - c) < EPS) {
+	y = std::pow(s, -b);
+	goto hypdon;
+    }
+  }
+
+  if (c <= 0.0) {
+      ic = std::round(c);
+      if (std::fabs(c - ic) < EPS) {
+	  if (neg_int_a && (ia > ic))
+	      y = hyt2f1(a, b, c, x, &err);
+	  if (neg_int_b && (ib > ic))
+	      y = hyt2f1(a, b, c, x, &err);
+	  return std::numeric_limits<scalar_t>::infinity();
+     } 
+  }
+
+  if (neg_int_a || neg_int_b)
+      y = hyt2f1(a, b, c, x, &err);
+
+  t1 = std::fabs(b - a);
+  if (x < -2.0 && std::fabs(t1 - std::round(t1)) > EPS) {
+      p = calc_hyp2f1(a, 1 - c + a, 1 - b + a, 1.0 / x);
+      q = calc_hyp2f1(b, 1 - c + b, 1 - a + b, 1.0 / x);
+      p *= std::pow(-x, -a);
+      q *= std::pow(-x, -b);
+      t1 = std::tgamma(c);
+      s = t1 * std::tgamma(b - a) / (std::tgamma(b) * std::tgamma(c - a));
+      y = t1 * std::tgamma(a - b) / (std::tgamma(a) * std::tgamma(c - b));
+      return s * p + y * q;
+  } else if (x < -1.0) {
+    if (std::fabs(a) < std::fabs(b)) {
+	return std::pow(s, -a) * calc_hyp2f1(a, c - b, c, x / (x - 1));
+    } else {
+	return std::pow(s, -b) * calc_hyp2f1(b, c - a, c, x / (x - 1));
+    }
+  }
+
+  if (ax > 1.0)
+      return return std::numeric_limits<scalar_t>::infinity();
+
+  p = c - a;
+  ia = std::round(p);
+  if ((ia <= 0.0) && (std::fabs(p - ia) < EPS))
+    neg_int_ca_or_cb = 1;
+
+  id = std::round(d);
+  q = std::fabs(d - id);
+
+  if (std::fabs(ax - 1.0) < EPS) {
+      if (x > 0.0) {
+	  if (neg_int_ca_or_cb) {
+	      if (d >= 0.0)
+		  goto hypf;
+	      else
+		  return std::numeric_limits<scalar_t>::infinity();
+	  }
+	  if (d <= 0.0)
+	      return std::numeric_limits<scalar_t>::infinity();
+	  y = std::tgamma(c) * std::tgamma(d) / (std::tgamma(p) * std::tgamma(r));
+	  goto hypdon;
+     }
+      if (d <= -1.0)
+	  std::numeric_limits<scalar_t>::infinity();
+  }
+
+  if (d < 0.0) {
+      y = calc_hyp2f1(a, b, c, x, &err);
+      if (err < ETHRESH)
+	  goto hypdon;
+      /* Apply the recurrence if power series fails */
+      err = 0.0;
+      aid = 2 - id;
+      e = c + aid;
+      d2 = calc_hyp2f1(a, b, e, x);
+      d1 = calc_hyp2f1(a, b, e + 1.0, x);
+      q = a + b + 1.0;
+      for (i = 0; i < aid; i++) {
+	  r = e - 1.0;
+	  y = (e * (r - (2.0 * e - q) * x) * d2 +
+	       (e - a) * (e - b) * x * d1) / (e * r * s);
+	  e = r;
+	  d1 = d2;
+	  d2 = y;
+      }
+      goto hypdon;
+  }
+
+  if (neg_int_ca_or_cb)
+      goto hypf;
+}
+
 /* The next function is taken from http://ab-initio.mit.edu/Faddeev */
 
 /* Copyright (c) 2012 Massachusetts Institute of Technology

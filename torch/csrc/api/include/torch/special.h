@@ -402,6 +402,46 @@ inline Tensor& i0_out(Tensor& result, const Tensor& self) {
   return torch::special_i0_out(result, self);
 }
 
+/// Computes hyp2f1
+/// See https://pytorch.org/docs/master/special.html#torch.special.hyp2f1
+///
+/// Example:
+/// ```
+///
+///
+/// ```
+inline Tensor hyp2f1(const Tensor& self, const Tensor& a, const Tensor& b, const Tensor& c) {
+  return torch::special_hyp2f1(self, a, b, c);
+}
+
+inline Tensor hyp2f1(const Tensor& self, const Scalar& a, const Tensor& b, const Tensor& c) {
+  return torch::special_hyp2f1(self, a, b, c);
+}
+
+inline Tensor hyp2f1(const Tensor& self, const Tensor& a, const Scalar& b, const Tensor& c) {
+  return torch::special_hyp2f1(self, a, b, c);
+}
+
+inline Tensor hyp2f1(const Tensor& self, const Tensor& a, const Tensor& b, const Scalar& c) {
+  return torch::special_hyp2f1(self, a, b, c);
+}
+
+inline Tensor& hyp2f1_out(Tensor& result, const Tensor& self, const Tensor& a, const Tensor& b, const Tensor& c) {
+  return torch::special_hyp2f1_out(result, self, a, b, c);
+}
+
+inline Tensor& hyp2f1_out(Tensor& result, const Tensor& self, const Scalar& a, const Tensor& b, const Tensor& c) {
+  return torch::special_hyp2f1_out(result, self, a, b, c);
+}
+
+inline Tensor& hyp2f1_out(Tensor& result, const Tensor& self, const Tensor& a, const Scalar& b, const Tensor& c) {
+  return torch::special_hyp2f1_out(result, self, a, b, c);
+}
+
+inline Tensor& hyp2f1_out(Tensor& result, const Tensor& self, const Tensor& a, const Tensor& b, const Scalar& c) {
+  return torch::special_hyp2f1_out(result, self, a, b, c);
+}
+
 /// Computes the area under the standard Gaussian probability density function,
 /// integrated from minus infinity to :attr:`input`, elementwise
 /// See https://pytorch.org/docs/master/special.html#torch.special.ndtr

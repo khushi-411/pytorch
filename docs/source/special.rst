@@ -43,3 +43,4 @@ Functions
 .. autofunction:: xlog1py
 .. autofunction:: xlogy
 .. autofunction:: zeta
+.. autofunction:: hyp2f1

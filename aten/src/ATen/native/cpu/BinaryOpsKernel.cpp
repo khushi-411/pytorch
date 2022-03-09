@@ -1104,6 +1104,14 @@ void zeta_kernel(TensorIteratorBase& iter) {
   });
 }
 
+void hyp2f1_kernel(TensorIteratorBase& iter) {
+  AT_DISPATCH_FLOATING_TYPES(iter.common_dtype(), "hyp2f1_cpu", [&]() {
+    cpu_kernel(iter, [](scalar_t x, scalar_t a, scalar_t b, scalar_t c) -> scalar_t {
+      return hyp2f1(x, a, b, c);
+    });
+  });
+}
+
 } // namespace
 
 REGISTER_DISPATCH(add_clamp_stub, &add_clamp_kernel);
@@ -1151,6 +1159,7 @@ REGISTER_DISPATCH(copysign_stub, &copysign_kernel);
 REGISTER_DISPATCH(xlogy_stub, &xlogy_kernel);
 REGISTER_DISPATCH(xlog1py_stub, &xlog1py_kernel);
 REGISTER_DISPATCH(zeta_stub, &zeta_kernel);
+REGISTER_DISPATCH(hyp2f1_stub, &hyp2f1_kernel);
 
 } // namespace native
 } // namespace at
