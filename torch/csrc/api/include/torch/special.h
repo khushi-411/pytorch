@@ -402,12 +402,11 @@ inline Tensor& i0_out(Tensor& result, const Tensor& self) {
   return torch::special_i0_out(result, self);
 }
 
-/// Computes hyp2f1
+/// Computes Gauss Hypergeometric function (special.hyp2f1)
 /// See https://pytorch.org/docs/master/special.html#torch.special.hyp2f1
 ///
 /// Example:
 /// ```
-///
 ///
 /// ```
 inline Tensor hyp2f1(const Tensor& self, const Tensor& a, const Tensor& b, const Tensor& c) {

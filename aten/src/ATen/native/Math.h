@@ -1605,223 +1605,7 @@ static inline C10_HOST_DEVICE T calc_ndtri(T y0) {
   }
   return x;
 }
-
-/* The next function is taken from https://github.com/scipy/scipy/blob/main/scipy/special/cephes/hyp2f1.c.
- *
- * Gauss hypergeometric function1  F
- * 		                  2 1
- *
- * EQUATION:
- *
- * y = hyp2f1( a, b, c, x );
- *
- *
- * FORMULA:
- *
- * hyp2f1( a, b, c, x ) =   F ( a, b; c; x)
- *                         2 1 
- *
- *                            inf. (a)  (b)      n
- *                             --     n    n  (x)
- *                      =      >  ----------- ---
- *                             --      (c)    (n)!
- *                            k = 0       n
- *
- *                                      Here: (q)_n is the Pochhammer symbol, defined as:
- *
- *                                      	     __ 1;                    if n = 0
- *                                                  |
- *                                          (q)   = |
- *                                             n    |
- *                                             	    |__ q(q+1)...(q+n-1);     if n > 0
- *
- *
- *                            inf.
- *                             -- a(a+1)...(a+k) b(b+1)...(b+k)   k+1
- *                      = 1 +  >  -----------------------------  x
- *                             --      c(c+1)...(c+k) (k+1)!
- *                            k = 0
- *
- *                                                              2
- *                           	    ab  x      a(a+1)b(b+1)  (x)
- *                      =     1 +  ---- -- +  -------------- --- + ....
- *                                   c  1!        c(c+1)      2!
- *
- * DESCRIPTION:
- *
- * The following cases are addressed here:
- *
- * Case 1: If a < 0, b < 0, and c < 0; i.e. if a, b, c are negative integers.
- *
- * Case 2: If c - a < 0, and c - b < 0; Linear Transformation
- *
- * Case 3: If c = a or c = b; Special case
- *
- * Case 4: If x is near to +1; Linear Transformation.
- *
- * Case 5: If x < -0.5
- *
- * Case 6: If x > 0.5 and c - a - b is an integer.
- *
- * Case 7: Recurrence on c to make c - a - b > 0
- *
- * Case 8: If x < -1; AMS 15.3.7 transformation (Thanks to Travis Oliphant)
- * 		 valid for b,a,c,(b-a) != integer and (c-a), (c-b) != negative integer
- *
- * Case 9: If x >= 1; Rejected
- *
- * NOTE: The parameters a, b, c are considered to be integer
- *       valued, if they are within 1.0e-14 of the nearest integer
- *       (1.0e-13 for IEEE arithmetic).
- *
- */
-
-template <typename T>
-C10_HOST_DEVICE static inline typename std::enable_if<std::is_floating_point<T>::value, T>::type
-calc_hyp2f1(T a, T b, T c, T x)
-{
-  double d, d1, d2, e;
-  double p, q, r, s, y, ax;
-  double ia, ib, ic, id, err;
-  double t1;
-  int i, aid;
-  int neg_int_a = 0, neg_int_b = 0;
-  int neg_int_ca_or_cb = 0;
-
-  err = 0.0;
-  ax = std::fabs(a);
-  s = 1.0 - x;
-  ia = std::round(a);
-  ib = std::round(b);
-
-  if (x == 0.0) {
-      return 1.0;
-  }
-
-  d = c - a - b;
-  id = std::round(d);
-
-  if ((a == 0 || b == 0) && c != 0) {
-    return 1.0;
-  }
-
-  if (a <= 0 && std::fabs(a - ia) < EPS) { /* a is a negative integer */
-    neg_int_a = 1;
-  }
-
-  if (b <= 0 && std::fabs(b - ib) < EPS) { /* b is a negative integer */
-    neg_int_b = 1;
-  }
-
-  if (d <= -1 && !(std::fabs(d - id) > EPS && s < 0)
-      && !(neg_int_a || neg_int_b)) {
-    return std::pow(s, d) * calc_hyp2f1(c - a, c - b, c, x);
-  }
-
-  if (d <= 0 && x == 1 && !(neg_int_a || neg_int_b))
-    return std::numeric_limits<scalar_t>::infinity();
-
-  if (ax < 1.0 || x == -1.0) {
-    if (std::fabs(b - c) < EPS) {
-	if (neg_int_b) {
-	    y = hyp2f1_neg_c_equal_bc(a, b, x);
-	} else {
-	    y = std::pow(s, -a);
-	}
-	goto hypdon;
-    }
-    if (std::fabs(a - c) < EPS) {
-	y = std::pow(s, -b);
-	goto hypdon;
-    }
-  }
-
-  if (c <= 0.0) {
-      ic = std::round(c);
-      if (std::fabs(c - ic) < EPS) {
-	  if (neg_int_a && (ia > ic))
-	      y = hyt2f1(a, b, c, x, &err);
-	  if (neg_int_b && (ib > ic))
-	      y = hyt2f1(a, b, c, x, &err);
-	  return std::numeric_limits<scalar_t>::infinity();
-     } 
-  }
-
-  if (neg_int_a || neg_int_b)
-      y = hyt2f1(a, b, c, x, &err);
-
-  t1 = std::fabs(b - a);
-  if (x < -2.0 && std::fabs(t1 - std::round(t1)) > EPS) {
-      p = calc_hyp2f1(a, 1 - c + a, 1 - b + a, 1.0 / x);
-      q = calc_hyp2f1(b, 1 - c + b, 1 - a + b, 1.0 / x);
-      p *= std::pow(-x, -a);
-      q *= std::pow(-x, -b);
-      t1 = std::tgamma(c);
-      s = t1 * std::tgamma(b - a) / (std::tgamma(b) * std::tgamma(c - a));
-      y = t1 * std::tgamma(a - b) / (std::tgamma(a) * std::tgamma(c - b));
-      return s * p + y * q;
-  } else if (x < -1.0) {
-    if (std::fabs(a) < std::fabs(b)) {
-	return std::pow(s, -a) * calc_hyp2f1(a, c - b, c, x / (x - 1));
-    } else {
-	return std::pow(s, -b) * calc_hyp2f1(b, c - a, c, x / (x - 1));
-    }
-  }
-
-  if (ax > 1.0)
-      return return std::numeric_limits<scalar_t>::infinity();
-
-  p = c - a;
-  ia = std::round(p);
-  if ((ia <= 0.0) && (std::fabs(p - ia) < EPS))
-    neg_int_ca_or_cb = 1;
-
-  id = std::round(d);
-  q = std::fabs(d - id);
-
-  if (std::fabs(ax - 1.0) < EPS) {
-      if (x > 0.0) {
-	  if (neg_int_ca_or_cb) {
-	      if (d >= 0.0)
-		  goto hypf;
-	      else
-		  return std::numeric_limits<scalar_t>::infinity();
-	  }
-	  if (d <= 0.0)
-	      return std::numeric_limits<scalar_t>::infinity();
-	  y = std::tgamma(c) * std::tgamma(d) / (std::tgamma(p) * std::tgamma(r));
-	  goto hypdon;
-     }
-      if (d <= -1.0)
-	  std::numeric_limits<scalar_t>::infinity();
-  }
-
-  if (d < 0.0) {
-      y = calc_hyp2f1(a, b, c, x, &err);
-      if (err < ETHRESH)
-	  goto hypdon;
-      /* Apply the recurrence if power series fails */
-      err = 0.0;
-      aid = 2 - id;
-      e = c + aid;
-      d2 = calc_hyp2f1(a, b, e, x);
-      d1 = calc_hyp2f1(a, b, e + 1.0, x);
-      q = a + b + 1.0;
-      for (i = 0; i < aid; i++) {
-	  r = e - 1.0;
-	  y = (e * (r - (2.0 * e - q) * x) * d2 +
-	       (e - a) * (e - b) * x * d1) / (e * r * s);
-	  e = r;
-	  d1 = d2;
-	  d2 = y;
-      }
-      goto hypdon;
-  }
-
-  if (neg_int_ca_or_cb)
-      goto hypf;
-}
-
+ 
 /* The next function is taken from http://ab-initio.mit.edu/Faddeev */
 
 /* Copyright (c) 2012 Massachusetts Institute of Technology
@@ -2330,3 +2114,526 @@ calc_erfcx(T x)
 }
 
 C10_CLANG_DIAGNOSTIC_POP()
+
+/* The next function is taken from https://github.com/scipy/scipy/blob/main/scipy/special/cephes/hyp2f1.c.
+ *
+ * Gauss hypergeometric function1  F
+ * 		                  2 1
+ *
+ * EQUATION:
+ *
+ * y = hyp2f1( a, b, c, x );
+ *
+ *
+ * FORMULA:
+ *
+ * hyp2f1( a, b, c, x ) =   F ( a, b; c; x)
+ *                         2 1 
+ *
+ *                            inf. (a)  (b)      n
+ *                             --     n    n  (x)
+ *                      =      >  ----------- ---
+ *                             --      (c)    (n)!
+ *                            k = 0       n
+ *
+ *                                      Here: (q)_n is the Pochhammer symbol, defined as:
+ *
+ *                                      	     __ 1;                    if n = 0
+ *                                                  |
+ *                                          (q)   = |
+ *                                             n    |
+ *                                             	    |__ q(q+1)...(q+n-1);     if n > 0
+ *
+ *
+ *                            inf.
+ *                             -- a(a+1)...(a+k) b(b+1)...(b+k)   k+1
+ *                      = 1 +  >  -----------------------------  x
+ *                             --      c(c+1)...(c+k) (k+1)!
+ *                            k = 0
+ *
+ *                                                              2
+ *                           	    ab  x      a(a+1)b(b+1)  (x)
+ *                      =     1 +  ---- -- +  -------------- --- + ...
+ *                                   c  1!        c(c+1)      2!
+ *
+ * DESCRIPTION:
+ *
+ * The following cases are addressed here:
+ *     - If a < 0, b < 0, and c < 0; i.e. if a, b, c are negative integers.
+ *     - If c - a < 0, and c - b < 0; Linear Transformation
+ *     - If c = a or c = b; Special case
+ *     - If x is near to +1; Linear Transformation.
+ *     - If x < -0.5
+ *     - If x > 0.5 and c - a - b is an integer.
+ *     - Recurrence on c to make c - a - b > 0
+ *     - If x < -1; AMS 15.3.7 transformation (Thanks to Travis Oliphant)
+ * 	     valid for b,a,c,(b-a) != integer and (c-a), (c-b) != negative integer
+ *     - If x >= 1; Rejected
+ *
+ * NOTE: The parameters a, b, c are considered to be integer
+ *       valued, if they are within 1.0e-14 of the nearest integer
+ *       (1.0e-13 for IEEE arithmetic).
+ *
+ */
+
+template <typename T>
+C10_HOST_DEVICE static inline typename std::enable_if<std::is_floating_point<T>::value, T>::type
+calc_hyp2f1(T a, T b, T c, T x)
+{
+  double d, d1, d2, e;
+  double p, q, r, s, y, ax;
+  double ia, ib, ic, id, err;
+  double t1;
+  int i, aid;
+  int neg_int_a = 0, neg_int_b = 0;
+  int neg_int_ca_or_cb = 0;
+
+  err = 0.0;
+  ax = std::fabs(a);
+  s = 1.0 - x;
+  ia = std::round(a);
+  ib = std::round(b);
+
+  if (x == 0.0) {
+      return 1.0;
+  }
+
+  d = c - a - b;
+  id = std::round(d);
+
+  if ((a == 0 || b == 0) && c != 0) {
+    return 1.0;
+  }
+
+  if (a <= 0 && std::fabs(a - ia) < EPS) { /* a is a negative integer */
+    neg_int_a = 1;
+  }
+
+  if (b <= 0 && std::fabs(b - ib) < EPS) { /* b is a negative integer */
+    neg_int_b = 1;
+  }
+
+  if (d <= -1 && !(std::fabs(d - id) > EPS && s < 0)
+      && !(neg_int_a || neg_int_b)) {
+    return std::pow(s, d) * calc_hyp2f1(c - a, c - b, c, x);
+  }
+
+  if (d <= 0 && x == 1 && !(neg_int_a || neg_int_b))
+    return std::numeric_limits<scalar_t>::infinity();
+
+  if (ax < 1.0 || x == -1.0) {
+    if (std::fabs(b - c) < EPS) {
+	if (neg_int_b) {
+	    y = hyp2f1_neg_c_equal_bc(a, b, x);
+	} else {
+	    y = std::pow(s, -a);
+	}
+	if (err > ETHRESH) {
+	    // check
+	    return std::numeric_limits<scalar_t>::infinity();
+	}
+	return y;
+    }
+    if (std::fabs(a - c) < EPS) {
+	y = std::pow(s, -b);
+	if (err > ETHRESH) {
+	    // check
+	    return std::numeric_limits<scalar_t>::infinity();
+	}
+	return y;
+    }
+  }
+
+  if (c <= 0.0) {
+      ic = std::round(c);
+      if (std::fabs(c - ic) < EPS) {
+	  if (neg_int_a && (ia > ic))
+	      y = hyt2f1(a, b, c, x, &err);
+	  if (neg_int_b && (ib > ic))
+	      y = hyt2f1(a, b, c, x, &err);
+	  return std::numeric_limits<scalar_t>::infinity();
+     } 
+  }
+
+  if (neg_int_a || neg_int_b)
+      y = hyt2f1(a, b, c, x, &err);
+
+  t1 = std::fabs(b - a);
+  if (x < -2.0 && std::fabs(t1 - std::round(t1)) > EPS) {
+      p = calc_hyp2f1(a, 1 - c + a, 1 - b + a, 1.0 / x);
+      q = calc_hyp2f1(b, 1 - c + b, 1 - a + b, 1.0 / x);
+      p *= std::pow(-x, -a);
+      q *= std::pow(-x, -b);
+      t1 = std::tgamma(c);
+      s = t1 * std::tgamma(b - a) / (std::tgamma(b) * std::tgamma(c - a));
+      y = t1 * std::tgamma(a - b) / (std::tgamma(a) * std::tgamma(c - b));
+      return s * p + y * q;
+  } else if (x < -1.0) {
+    if (std::fabs(a) < std::fabs(b)) {
+	return std::pow(s, -a) * calc_hyp2f1(a, c - b, c, x / (x - 1));
+    } else {
+	return std::pow(s, -b) * calc_hyp2f1(b, c - a, c, x / (x - 1));
+    }
+  }
+
+  if (ax > 1.0)
+      return std::numeric_limits<scalar_t>::infinity();
+
+  p = c - a;
+  ia = std::round(p);
+  if ((ia <= 0.0) && (std::fabs(p - ia) < EPS))
+    neg_int_ca_or_cb = 1;
+
+  r = c - b;
+  ib = std::round(r);
+  if ((ib <= 0.0) && (std::fabs(p - ia) < EPS))
+      neg_int_ca_or_cb = 1;
+
+  id = std::round(d);
+  q = std::fabs(d - id);
+
+  if (std::fabs(ax - 1.0) < EPS) {
+      if (x > 0.0) {
+	  if (neg_int_ca_or_cb) {
+	      if (d >= 0.0) {
+		  y = std::pow(s, d) * hys2f1(c - a, c - b, c, x, &err);
+		  if (err > ETHRESH) {
+		      // check
+		      return std::numeric_limits<scalar_t>::infinity();
+		  }
+		  return y;
+	      }
+	      else
+		  return std::numeric_limits<scalar_t>::infinity();
+	  }
+	  if (d <= 0.0)
+	      return std::numeric_limits<scalar_t>::infinity();
+	  y = std::tgamma(c) * std::tgamma(d) / (std::tgamma(p) * std::tgamma(r));
+	  goto hypdon;
+     }
+      if (d <= -1.0)
+	  return std::numeric_limits<scalar_t>::infinity();
+  }
+
+  if (d < 0.0) {
+      y = hyt2f1(a, b, c, x, &err);
+      if (err < ETHRESH)
+	  return y;
+      /* Apply the recurrence if power series fails */
+      err = 0.0;
+      aid = 2 - id;
+      e = c + aid;
+      d2 = calc_hyp2f1(a, b, e, x);
+      d1 = calc_hyp2f1(a, b, e + 1.0, x);
+      q = a + b + 1.0;
+      for (i = 0; i < aid; i++) {
+	  r = e - 1.0;
+	  y = (e * (r - (2.0 * e - q) * x) * d2 +
+	       (e - a) * (e - b) * x * d1) / (e * r * s);
+	  e = r;
+	  d1 = d2;
+	  d2 = y;
+      }
+      if (err > ETHRESH) {
+          // check
+	  return std::numeric_limits<scalar_t>::infinity();
+      }
+      return y;
+  }
+
+  if (neg_int_ca_or_cb) {
+      y = std::pow(s, d) * hys2f1(c - a, c - b, c, x, &err);
+      if (err > ETHRESH) {
+	  // check
+          return std::numeric_limits<scalar_t>::infinity();
+      }
+      return y;
+  }
+}
+
+static double hyt2f1(a, b, c, x, loss)
+double a, b, c, x;
+double *loss;
+{
+    double p, q, r, s, t, y, w, d, err, err1;
+    double ax, id, d1, d2, e, y1;
+    int i, aid, sign;
+
+    int ia, ib, neg_int_a = 0, neg_int_b = 0;
+
+    ia = std::round(a);
+    ib = std::round(b);
+
+    if (a <= 0 && std::fabs(a - ia) < EPS) {
+        neg_int_a = 1;
+    }
+
+    if (b <= 0 && std::fabs(b - ib) < EPS) {
+	neg_int_b = 1;
+    }
+
+    err = 0.0;
+    s = 1.0 - x;
+    if (x < -0.5 && !(neg_int_a || neg_int_b)) {
+	if (b > a)
+	    y = std::pow(s, -a) * hys2f1(a, c - b, c, -x / s, &err);
+	else
+	    y = std::pow(s, -b) * hys2f1(c - a, b, c, -x / a, &err);
+
+	*loss = err;
+	return y;
+    }
+
+    d = c - a - b;
+    id = std::round(d);
+
+    if (x > 0.9 && !(neg_int_a || neg_int_b)) {
+        if (std::fabs(d - id) > EPS) {
+	    int sgngam;
+
+	    y = hys2f1(a, b, c, x, &err);
+	    if (err < ETHRESH) {
+		*loss = err;
+		return y;
+	    }
+	    q = hys2f1(a, b, 1.0 - d, s, &err);
+	    sign = 1;
+	    w = std::lgam_sgn(d, &sgngam);
+	    sign *= sgngam;
+	    w -= std::lgam_sgn(c - a, &sgngam);
+	    sign *= sgngam;
+	    w -= std::lgam_sgn(c-b, &sgngam);
+            sign *= sgngam;
+	    q *= sign * std::exp(w);
+	    r = std::pow(s, d) * hys2f1(c - a, c - b, d + 1.0, s, &err1);
+            sign = 1;
+            w = std::lgam_sgn(-d, &sgngam);
+            sign *= sgngam;
+            w -= std::lgam_sgn(a, &sgngam);
+            sign *= sgngam;
+            w -= std::lgam_sgn(b, &sgngam);
+            sign *= sgngam;
+	    r *= sign * std::exp(w);
+	    y = q + r;
+
+	    q = std::fabs(q);
+	    r = std::fabs(r);
+	    if (q > r)
+		r = q;
+	    err += err1 + (MACHEP * r) / y;
+
+	    y *= std::tgamma(c);
+
+	    *loss = err;
+	    return y;
+	} else {
+	    if (id >= 0.0) {
+	        e = d;
+		d1 = d;
+		d2 = 0.0;
+		aid = id;
+	    } else {
+	        e = -d;
+		d1 = 0.0;
+		d2 = d;
+		aid = -id;
+	    }
+        }
+
+	ax = std::log(s);
+
+	y = std::psi(1.0) + std::psi(1.0 + e) - std::psi(a + d1) - std::psi(b + d1) - ax;
+	y /= std::tgamma(e + 1.0);
+
+	p = (a + d1) * (b + d1) * s / std::tgamma(e + 2.0);
+	t = 1.0;
+	do {
+	    r = std::psi(1.0 + t) + std::psi(1.0 + t + e) - std::psi(a + t + d1)
+		- std::psi(b + t + d1) -ax;
+	    q = p * r;
+	    y += q;
+	    p *= s * (a + t + d1) / (t + 1.0 + e);
+	    t += 1.0;
+	    if (t > MAX_ITERATIONS) {
+	        *loss = 1.0;
+		return std::numeric_limits<scalar_t>::infinity();
+	    }
+        }
+	while (y == 0 || std::fabs(q / y) > EPS);
+
+	if (id == 0.0) {
+	    y *= std::tgamma(c) /(std::gamma(a) * std::gamma(b));
+
+	    *loss = err;
+	    return y;
+        }
+
+	y1 = 1.0;
+
+	if (aid == 1) {
+	    p = std::tgamma(c);
+	    y1 *= tgamma(e) * p / (std::tgamma(a + d1) * std::tgamma(b + d1));
+
+	    y *= p / (std::tgamma(a + d2) * std::gamma(b + d2));
+	    if ((aid & 1) != 0)
+	        y = -y;
+
+	    q = std::pow(s, id);
+	    if (id > 0.0)
+	        y *= q;
+	    else
+		y1 *= q;
+
+	    y += y1;
+	}
+
+	t = 0.0;
+	p = 1.0;
+	for (i = i, i < aid; i++) {
+	    r = 1.0 -e + t;
+	    p *= s * (a + t + d2) * (b + t + d2) / r;
+	    t += 1.0;
+	    p /= t;
+	    y1 += p;
+        }
+    }
+ 
+    y = hys2f1(a, b, c, x, &err);
+
+}
+
+static double hys2f1(a, b, c, x, loss)
+double a, b, c, x;
+double *loss;
+{
+    double f, g, h, k, m, s, u, umax;
+    int i;
+    int ib, intflag = 0;
+
+    if (std::fabs(b) > std::fabs(a)) {
+        f = b;
+	b = a;
+	a = f;
+    }
+
+    ib = std::round(b);
+
+    if (std::fabs(b - ib) < EPS && ib <= 0 && std::fabs(b) < std::fabs(a)) {
+        f = b;
+	b = a;
+	a = f;
+	intflag = 1;
+    }
+
+    if ((std::fabs(a) > std::fabs(c) + 1 || intflag) && std::fabs(c - a) > 2 && std:;fabs(a) > 2) {
+        return hyp2f1ra(a, b, c, x, loss);
+    }
+
+    i = 0;
+    umax = 0.0;
+    f = a;
+    g = b;
+    h = c;
+    s = 1.0;
+    u = 1.0;
+    k = 0.0;
+    do {
+        if (std::fabs(h) < EPS) {
+	    *loss = 1.0;
+	    return std::numeric_limits<scalar_t>::infinity();
+	}
+	m = k + 1.0;
+	u = u * ((f + k) * (g + k) * x / ((h + k) * m));
+	s += u;
+	k = std::fabs(u);
+	if (k > umax)
+	    umax = k;
+	k = m;
+	if (++i > MAX_ITERATIONS) {
+	    *loss = 1.0;
+	    return s;
+	}
+    }
+    while (s == 0 || std::fabs(u / s) > MACHEP);
+
+    *loss = (MACHEP * umax) / std::fabs(s) + (MACHEP * i);
+
+    return s;
+}
+
+static double hyp2f1ra(double a, double b, double c, double x, double *loss) {
+    double f2, f1, f0;
+    int n;
+    double t, err, da;
+
+    if ((c < 0 && a <= c) || (c >= 0 && a >= c)) {
+        da = std::round(a - c);
+    }
+    else {
+        da = std::round(a);
+    }
+    t = a - da;
+
+    *loss = 0;
+
+    assert(da != 0);
+
+    if (std::fabs(da) > MAX_ITERATIONS) {
+        *loss = 1.0;
+	return std::numeric_limits<scalar_t>::infinity();
+    }
+
+    if (da < 0) {
+        f2 = 0;
+	f1 = hys2f1(t, b, c, x, &err);
+	*loss += err;
+	f0 = hys2f1(t - 1, b, c, x, &err);
+	*loss += err;
+	t -= 1;
+	for (n = 1; n < -da; ++n) {
+	    f2 = f1;
+	    f1 = f0;
+	    f0 = -(2 * t -c -t * x + b * x) / (c - t) * f1 - t * (x - 1) / (c - t) * f2;
+	    t -= 1;
+	}
+    } else {
+        f2 = 0;
+	f1 = hys2f1(t, b, c, x, &err);
+	*loss += err;
+	f0 = hys2f1(t + 1, b, c, x, &err);
+	*loss += err;
+	t += 1;
+	for (n = 1; n < da; ++n) {
+	    f2 = f1;
+	    f1 = f0;
+	    f0 = -((2 * t - c - t * x + b * x) * f1 + (c - t) * f2) / (t * (x - 1));
+	    t += 1;
+	}
+    }
+
+    return f0;
+}
+
+static double hyp2f1_neg_c_equal_bc(double a, double b, double x)
+{
+    double k;
+    double collector = 1;
+    double sum = 1;
+    double collector_max = 1;
+
+    if (!(std::fabs(b) < ie5)) {
+        return std::numeric_limits<scalar_t>::infinity();
+    }
+
+    for (k = 1; k <= -b; k++) {
+        collector *= (a + k - 1) * x / k;
+	collector_max = std::fmax(std::fabs(collector), collector_max);
+	sum += collector;
+    }
+
+    if (ie-16 * (1 + collector_max / std::fabs(sum)) > 1e - 7) {
+        return std::numeric_limits<scalar_t>::infinity();
+    }
+
+    return sum;
+}
