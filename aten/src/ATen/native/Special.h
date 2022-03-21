@@ -1,11 +1,15 @@
 #pragma once
 
 #include <ATen/ATen.h>
+#include <ATen/native/DispatchStub.h>
 
 namespace at {
 namespace native {
 
-using structured_quad_fn = void(*)(TensorIteratorBase);
+// TODO
+// TODO: void (*) mean?
+using structured_quad_fn = void (*)(
+    at::TensorIteratorBase& iter);
 
 DECLARE_DISPATCH(structured_quad_fn, special_hyp2f1_stub);
 

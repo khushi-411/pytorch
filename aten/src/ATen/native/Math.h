@@ -7,6 +7,7 @@
 #include <limits>
 #include <type_traits>
 #include <ATen/NumericUtils.h>
+#include <ATen/native/UnaryOps.h>
 #include <c10/util/BFloat16.h>
 #include <c10/util/Half.h>
 #include <c10/util/MathConstants.h>
@@ -2176,17 +2177,34 @@ C10_CLANG_DIAGNOSTIC_POP()
  *
  */
 
-template <typename T>
-C10_HOST_DEVICE static inline typename std::enable_if<std::is_floating_point<T>::value, T>::type
-calc_hyp2f1(T a, T b, T c, T x)
+#define EPS 1.0e-13
+#define EPS2 1.0e-10
+
+#define ETHRESH 1.0e-12
+
+#define MAX_ITERATIONS 10000
+
+// TODO
+extern double MACHEP;
+
+// TODO: why declared as ::exp instead of srd::exp?
+// TODO: define via template <typename T> ?
+// TODO: error: expected nested-name-specifier before ‘calc_hyp2f1’
+template <typename scalar_t>
+C10_HOST_DEVICE static inline typename std::enable_if<std::is_floating_point<scalar_t>::value, scalar_t>::type
+calc_hyp2f1(scalar_t a, scalar_t b, scalar_t c, scalar_t x)
+//calc_hyp2f1(scalar_t a, scalar_t b, scalar_t c, scalar_t x)
 {
-  double d, d1, d2, e;
-  double p, q, r, s, y, ax;
-  double ia, ib, ic, id, err;
-  double t1;
-  int i, aid;
-  int neg_int_a = 0, neg_int_b = 0;
-  int neg_int_ca_or_cb = 0;
+  // TODO: use constexpr double or double?
+  // TODO: use scalar_t?
+  // error: no matching function for call to ‘calc_hyp2f1(float&, float, float, double)’
+  scalar_t d, d1, d2, e;
+  scalar_t p, q, r, s, y, ax;
+  scalar_t ia, ib, ic, id, err;
+  scalar_t t1;
+  scalar_t i, aid;
+  scalar_t neg_int_a = 0, neg_int_b = 0;
+  scalar_t neg_int_ca_or_cb = 0;
 
   err = 0.0;
   ax = std::fabs(a);
@@ -2229,7 +2247,7 @@ calc_hyp2f1(T a, T b, T c, T x)
 	    y = std::pow(s, -a);
 	}
 	if (err > ETHRESH) {
-	    // check
+	    // TODO: check
 	    return std::numeric_limits<scalar_t>::infinity();
 	}
 	return y;
@@ -2237,7 +2255,7 @@ calc_hyp2f1(T a, T b, T c, T x)
     if (std::fabs(a - c) < EPS) {
 	y = std::pow(s, -b);
 	if (err > ETHRESH) {
-	    // check
+	    // TODO: check
 	    return std::numeric_limits<scalar_t>::infinity();
 	}
 	return y;
@@ -2298,7 +2316,7 @@ calc_hyp2f1(T a, T b, T c, T x)
 	      if (d >= 0.0) {
 		  y = std::pow(s, d) * hys2f1(c - a, c - b, c, x, &err);
 		  if (err > ETHRESH) {
-		      // check
+		      // TODO: check
 		      return std::numeric_limits<scalar_t>::infinity();
 		  }
 		  return y;
@@ -2309,7 +2327,10 @@ calc_hyp2f1(T a, T b, T c, T x)
 	  if (d <= 0.0)
 	      return std::numeric_limits<scalar_t>::infinity();
 	  y = std::tgamma(c) * std::tgamma(d) / (std::tgamma(p) * std::tgamma(r));
-	  goto hypdon;
+	  if (err > ETHRESH) {
+	      return std::numeric_limits<scalar_t>::infinity();
+	  }
+	  return (y);
      }
       if (d <= -1.0)
 	  return std::numeric_limits<scalar_t>::infinity();
@@ -2335,7 +2356,7 @@ calc_hyp2f1(T a, T b, T c, T x)
 	  d2 = y;
       }
       if (err > ETHRESH) {
-          // check
+          // TODO: check
 	  return std::numeric_limits<scalar_t>::infinity();
       }
       return y;
@@ -2344,22 +2365,29 @@ calc_hyp2f1(T a, T b, T c, T x)
   if (neg_int_ca_or_cb) {
       y = std::pow(s, d) * hys2f1(c - a, c - b, c, x, &err);
       if (err > ETHRESH) {
-	  // check
+	  // TODO: check
           return std::numeric_limits<scalar_t>::infinity();
       }
       return y;
   }
 }
 
-static double hyt2f1(a, b, c, x, loss)
-double a, b, c, x;
-double *loss;
+template <typename scalar_t>
+// static double hyt2f1(a, b, c, x, loss)
+// double a, b, c, x;
+// double *loss;
+// TODO: do we need inline here? like: static inline scalar_t hyp2f1()
+C10_HOST_DEVICE static inline scalar_t hyt2f1(scalar_t a, scalar_t b, scalar_t c, scalar_t x, scalar_t* loss)
 {
-    double p, q, r, s, t, y, w, d, err, err1;
-    double ax, id, d1, d2, e, y1;
-    int i, aid, sign;
+    //double
+    scalar_t p, q, r, s, t, y, w, d, err, err1;
+    //double
+    scalar_t ax, id, d1, d2, e, y1;
+    //int
+    scalar_t i, aid, sign;
 
-    int ia, ib, neg_int_a = 0, neg_int_b = 0;
+    //int
+    scalar_t ia, ib, neg_int_a = 0, neg_int_b = 0;
 
     ia = std::round(a);
     ib = std::round(b);
@@ -2398,20 +2426,21 @@ double *loss;
 	    }
 	    q = hys2f1(a, b, 1.0 - d, s, &err);
 	    sign = 1;
-	    w = std::lgam_sgn(d, &sgngam);
+	    // TODO: error: ‘lgam_sgn’ is not a member of ‘std’
+	    w = std::lgamma(d, &sgngam);
 	    sign *= sgngam;
-	    w -= std::lgam_sgn(c - a, &sgngam);
+	    w -= std::lgamma(c - a, &sgngam);
 	    sign *= sgngam;
-	    w -= std::lgam_sgn(c-b, &sgngam);
+	    w -= std::lgamma(c-b, &sgngam);
             sign *= sgngam;
 	    q *= sign * std::exp(w);
 	    r = std::pow(s, d) * hys2f1(c - a, c - b, d + 1.0, s, &err1);
             sign = 1;
-            w = std::lgam_sgn(-d, &sgngam);
+            w = std::lgamma(-d, &sgngam);
             sign *= sgngam;
-            w -= std::lgam_sgn(a, &sgngam);
+            w -= std::lgamma(a, &sgngam);
             sign *= sgngam;
-            w -= std::lgam_sgn(b, &sgngam);
+            w -= std::lgamma(b, &sgngam);
             sign *= sgngam;
 	    r *= sign * std::exp(w);
 	    y = q + r;
@@ -2442,14 +2471,15 @@ double *loss;
 
 	ax = std::log(s);
 
-	y = std::psi(1.0) + std::psi(1.0 + e) - std::psi(a + d1) - std::psi(b + d1) - ax;
+	// TODO: psi function
+	y = calc_digamma(1.0) + calc_digamma(1.0 + e) - calc_digamma(a + d1) - calc_digamma(b + d1) - ax;
 	y /= std::tgamma(e + 1.0);
 
 	p = (a + d1) * (b + d1) * s / std::tgamma(e + 2.0);
 	t = 1.0;
 	do {
-	    r = std::psi(1.0 + t) + std::psi(1.0 + t + e) - std::psi(a + t + d1)
-		- std::psi(b + t + d1) -ax;
+	    r = calc_diagamma(1.0 + t) + calc_digamma(1.0 + t + e) - calc_digamma(a + t + d1)
+		- special_psi(b + t + d1) - ax;
 	    q = p * r;
 	    y += q;
 	    p *= s * (a + t + d1) / (t + 1.0 + e);
@@ -2462,7 +2492,7 @@ double *loss;
 	while (y == 0 || std::fabs(q / y) > EPS);
 
 	if (id == 0.0) {
-	    y *= std::tgamma(c) /(std::gamma(a) * std::gamma(b));
+	    y *= std::tgamma(c) /(std::tgamma(a) * std::tgamma(b));
 
 	    *loss = err;
 	    return y;
@@ -2474,7 +2504,8 @@ double *loss;
 	    p = std::tgamma(c);
 	    y1 *= tgamma(e) * p / (std::tgamma(a + d1) * std::tgamma(b + d1));
 
-	    y *= p / (std::tgamma(a + d2) * std::gamma(b + d2));
+
+	    y *= p / (std::tgamma(a + d2) * std::tgamma(b + d2));
 	    if ((aid & 1) != 0)
 	        y = -y;
 
@@ -2489,8 +2520,8 @@ double *loss;
 
 	t = 0.0;
 	p = 1.0;
-	for (i = i, i < aid; i++) {
-	    r = 1.0 -e + t;
+	for (i = 1; i < aid; i++) {
+	    r = 1.0 - e + t;
 	    p *= s * (a + t + d2) * (b + t + d2) / r;
 	    t += 1.0;
 	    p /= t;
@@ -2502,13 +2533,20 @@ double *loss;
 
 }
 
-static double hys2f1(a, b, c, x, loss)
-double a, b, c, x;
-double *loss;
+// TODO: error: expected nested-name-specifier before ‘hys2f1’
+// Stack-Overflow: https://stackoverflow.com/questions/6489351/nested-name-specifier
+// static double hys2f1(a, b, c, x, loss)
+// double a, b, c, x;
+// double *loss;
+template <typename scalar_t>
+C10_HOST_DEVICE static inline scalar_t hys2f1(scalar_t a, scalar_t b, scalar_t c, scalar_t x, scalar_t* loss)
 {
-    double f, g, h, k, m, s, u, umax;
-    int i;
-    int ib, intflag = 0;
+    //double
+    scalar_t f, g, h, k, m, s, u, umax;
+    //int
+    scalar_t i;
+    //int
+    scalar_t ib, intflag = 0;
 
     if (std::fabs(b) > std::fabs(a)) {
         f = b;
@@ -2525,7 +2563,7 @@ double *loss;
 	intflag = 1;
     }
 
-    if ((std::fabs(a) > std::fabs(c) + 1 || intflag) && std::fabs(c - a) > 2 && std:;fabs(a) > 2) {
+    if ((std::fabs(a) > std::fabs(c) + 1 || intflag) && std::fabs(c - a) > 2 && std::fabs(a) > 2) {
         return hyp2f1ra(a, b, c, x, loss);
     }
 
@@ -2561,10 +2599,16 @@ double *loss;
     return s;
 }
 
-static double hyp2f1ra(double a, double b, double c, double x, double *loss) {
-    double f2, f1, f0;
-    int n;
-    double t, err, da;
+// static double hyp2f1ra(double a, double b, double c, double x, double *loss) {
+template <typename scalar_t>
+C10_HOST_DEVICE static inline scalar_t hyp2f1ra(scalar_t a, scalar_t b, scalar_t c, scalar_t x, scalar_t* loss)
+{
+    //double
+    scalar_t f2, f1, f0;
+    //int
+    scalar_t n;
+    //double
+    scalar_t t, err, da;
 
     if ((c < 0 && a <= c) || (c >= 0 && a >= c)) {
         da = std::round(a - c);
@@ -2614,14 +2658,20 @@ static double hyp2f1ra(double a, double b, double c, double x, double *loss) {
     return f0;
 }
 
-static double hyp2f1_neg_c_equal_bc(double a, double b, double x)
+// static double hyp2f1_neg_c_equal_bc(double a, double b, double x)
+template <typename scalar_t>
+C10_HOST_DEVICE static inline scalar_t hyp2f1_neg_c_equal_bc(scalar_t a, scalar_t b, scalar_t x)
 {
-    double k;
-    double collector = 1;
-    double sum = 1;
-    double collector_max = 1;
+    //double
+    scalar_t k;
+    //double
+    scalar_t collector = 1;
+    //double
+    scalar_t sum = 1;
+    //double
+    scalar_t collector_max = 1;
 
-    if (!(std::fabs(b) < ie5)) {
+    if (!(std::fabs(b) < 1e5)) {
         return std::numeric_limits<scalar_t>::infinity();
     }
 
@@ -2631,7 +2681,7 @@ static double hyp2f1_neg_c_equal_bc(double a, double b, double x)
 	sum += collector;
     }
 
-    if (ie-16 * (1 + collector_max / std::fabs(sum)) > 1e - 7) {
+    if (1e-16 * (1 + collector_max / std::fabs(sum)) > 1e-7) {
         return std::numeric_limits<scalar_t>::infinity();
     }
 

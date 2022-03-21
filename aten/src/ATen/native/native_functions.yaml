@@ -10318,56 +10318,136 @@
 - func: special_erfinv.out(Tensor self, *, Tensor(a!) out) -> Tensor(a!)
   python_module: special
 
+# TODO: shall we add combinations of scalars too?
+# TODO: Why do we need Scalar type here? :o
 - func: special_hyp2f1(Tensor self, Tensor a, Tensor b, Tensor c) -> Tensor
+  device_check: NoCheck   # TensorIterator (TODO: Why comment with TensorIterator?)
   python_module: special
   variants: function
   structured_delegate: special_hyp2f1.out
 
+- func: special_hyp2f1.self_scalar(Scalar self, Tensor a, Tensor b, Tensor c) -> Tensor
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
 - func: special_hyp2f1.a_scalar(Tensor self, Scalar a, Tensor b, Tensor c) -> Tensor
+  device_check: NoCheck   # TensorIterator
   python_module: special
   variants: function
   dispatch:
     CompositeExplicitAutograd: special_hyp2f1
 
 - func: special_hyp2f1.b_scalar(Tensor self, Tensor a, Scalar b, Tensor c) -> Tensor
+  device_check: NoCheck   # TensorIterator
   python_module: special
   variants: function
   dispatch:
     CompositeExplicitAutograd: special_hyp2f1
 
 - func: special_hyp2f1.c_scalar(Tensor self, Tensor a, Tensor b, Scalar c) -> Tensor
+  device_check: NoCheck   # TensorIterator1
   python_module: special
   variants: function
   dispatch:
     CompositeExplicitAutograd: special_hyp2f1
 
-- func: special_hyp2f1.out(Tensor self, Tensor a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+- func: special_hyp2f1.ab_scalar(Tensor self, Scalar a, Scalar b, Tensor c) -> Tensor
+  device_check: NoCheck   # TensorIterator
   python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.bc_scalar(Tensor self, Tensor a, Scalar b, Scalar c) -> Tensor
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.ca_scalar(Tensor self, Scalar a, Tensor b, Scalar c) -> Tensor
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+- func: special_hyp2f1.abc_scalar(Tensor self, Scalar a, Scalar b, Scalar c) -> Tensor
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1
+
+# TODO: Why to specify CPU, CUDA dispatch here and rest with CompositeExplicitAutograd?
+- func: special_hyp2f1.out(Tensor self, Tensor a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
   structured: True
   structured_inherits: TensorIteratorBase
+  python_module: special
+  variants: function
   dispatch:
     CPU, CUDA: special_hyp2f1_out
+
+# TODO: Why no structured and structured_inherits in scalar entries?
+- func: special_hyp2f1.self_scalar_out(Scalar self, Tensor a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1_out 
 
 - func: special_hyp2f1.a_scalar_out(Tensor self, Scalar a, Tensor b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
   python_module: special
-  structured: True
-  structured_inherits: TensorIteratorBase
+  variants: function
   dispatch:
-    CPU, CUDA: special_hyp2f1_out
+    CompositeExplicitAutograd: special_hyp2f1_out
 
 - func: special_hyp2f1.b_scalar_out(Tensor self, Tensor a, Scalar b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
   python_module: special
-  structured: True
-  structured_inherits: TensorIteratorBase
+  variants: function
   dispatch:
-    CPU, CUDA: special_hyp2f1_out
+    CompositeExplicitAutograd: special_hyp2f1_out
 
 - func: special_hyp2f1.c_scalar_out(Tensor self, Tensor a, Tensor b, Scalar c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
   python_module: special
-  structured: True
-  structured_inherits: TensorIteratorBase
+  variants: function
   dispatch:
-    CPU, CUDA: special_hyp2f1_out
+    CompositeExplicitAutograd: special_hyp2f1_out
+
+- func: special_hyp2f1.ab_scalar_out(Tensor self, Scalar a, Scalar b, Tensor c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1_out
+
+- func: special_hyp2f1.bc_scalar_out(Tensor self, Tensor a, Scalar b, Scalar c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1_out
+
+- func: special_hyp2f1.ca_scalar_out(Tensor self, Scalar a, Tensor b, Scalar c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1_out
+
+- func: special_hyp2f1.abc_scalar_out(Tensor self, Scalar a, Scalar b, Scalar c, *, Tensor(a!) out) -> Tensor(a!)
+  device_check: NoCheck   # TensorIterator
+  python_module: special
+  variants: function
+  dispatch:
+    CompositeExplicitAutograd: special_hyp2f1_out
 
 - func: special_ndtr(Tensor self) -> Tensor
   python_module: special
