@@ -20,7 +20,7 @@ class DirectoryReader(object):
     copy the behavior of the internal PyTorchFileReader class (which is used for
     accessing packages in all other cases).
 
-    N.B.: ScriptObjects are not depickleable or accessible via this DirectoryReader
+    N.B.: ScriptObjects are not depictable or accessible via this DirectoryReader
     class due to ScriptObjects requiring an actual PyTorchFileReader instance.
     """
 
