@@ -14,7 +14,7 @@ if(NOT BUILD_PYTHON)
 endif()
 
 if(USE_TBB)
-include_directories(${TBB_INCLUDE_DIR})
+  include_directories(${TBB_INCLUDE_DIR})
 endif()
 
 set(TORCH_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -268,6 +268,7 @@ if(USE_DEPLOY)
   add_library(torch_python_obj OBJECT ${TORCH_PYTHON_SRCS})
   if(NOT MSVC)
     target_compile_options(torch_python_obj PRIVATE -Wno-unused-variable)
+    target_compile_options(torch_python_obj PRIVATE -Wno-unused-local-typedefs)
   endif()
   if(USE_DISTRIBUTED)
     # Set c10d-related compile definitions. For a "normal" build of
@@ -379,6 +380,7 @@ endif()
 
 if(NOT MSVC)
   target_compile_options(torch_python PRIVATE -Wno-unused-variable)
+  target_compile_options(torch_python PRIVATE -Wno-unused-local-typedefs)
 endif()
 
 # Required workaround for generated sources
@@ -423,6 +425,10 @@ target_compile_options(torch_python PRIVATE ${TORCH_PYTHON_COMPILE_OPTIONS})
 
 target_include_directories(torch_python PUBLIC ${TORCH_PYTHON_INCLUDE_DIRECTORIES})
 
+if(BUILD_ONEDNN_GRAPH)
+  target_compile_definitions(torch_python PRIVATE "-DBUILD_ONEDNN_GRAPH")
+  target_compile_definitions(torch_cpu PRIVATE "-DBUILD_ONEDNN_GRAPH")
+endif()
 
 if(NOT TORCH_PYTHON_LINK_FLAGS STREQUAL "")
     set_target_properties(torch_python PROPERTIES LINK_FLAGS ${TORCH_PYTHON_LINK_FLAGS})
