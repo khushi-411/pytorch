@@ -99,7 +99,11 @@ Tensor& linspace_cuda_out(const Scalar& start, const Scalar& end, int64_t steps,
       });
     });
   } else {
-    AT_DISPATCH_FLOATING_AND_COMPLEX_TYPES_AND2(kHalf, kBFloat16, r.scalar_type(), "linspace_cuda", [&]() {
+    AT_DISPATCH_FLOATING_AND_COMPLEX_TYPES_AND3(
+        kComplexHalf, kHalf, kBFloat16,
+        r.scalar_type(),
+        "linspace_cuda",
+   [&]() {
       scalar_t scalar_start = start.to<scalar_t>();
       scalar_t scalar_end = end.to<scalar_t>();
       scalar_t step = (scalar_end - scalar_start) / static_cast<scalar_t>(steps - 1);
@@ -153,7 +157,11 @@ Tensor& logspace_cuda_out(const Scalar& start, const Scalar& end, int64_t steps,
       });
     });
   } else {
-    AT_DISPATCH_FLOATING_AND_COMPLEX_TYPES_AND2(kHalf, kBFloat16, r.scalar_type(), "logspace_cuda", [&]() {
+    AT_DISPATCH_FLOATING_AND_COMPLEX_TYPES_AND3(
+          kComplexHalf, kHalf, kBFloat16,
+          r.scalar_type(),
+          "logspace_cuda",
+    [&]() {
       scalar_t scalar_base = static_cast<scalar_t>(base);
       scalar_t scalar_start = start.to<scalar_t>();
       scalar_t scalar_end = end.to<scalar_t>();

@@ -2713,7 +2713,7 @@ class TestTensorCreation(TestCase):
                 self.assertEqual(res1, res2)
 
     @precisionOverride({torch.float: 1e-8, torch.double: 1e-10})
-    @dtypes(*floating_and_complex_types())
+    @dtypes(*floating_and_complex_types_and(torch.chalf))
     def test_linspace_vs_numpy(self, device, dtype):
         start = -0.0316082797944545745849609375 + (0.8888888888j if dtype.is_complex else 0)
         end = .0315315723419189453125 + (0.444444444444j if dtype.is_complex else 0)
@@ -2942,7 +2942,7 @@ class TestTensorCreation(TestCase):
         self.assertEqual(ref_tensor, bfloat16_tensor)
 
     @dtypes(*all_types_and_complex_and(torch.bfloat16))
-    @dtypesIfCUDA(*all_types_and_complex_and(torch.bfloat16))
+    @dtypesIfCUDA(*all_types_and_complex_and(torch.chalf, torch.bfloat16))
     def test_linspace(self, device, dtype):
         _from = random.random()
         to = _from + random.random()
