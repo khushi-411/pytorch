@@ -706,6 +706,13 @@ python_ref_db: List[OpInfo] = [
         op_db=op_db,
     ),
     ElementwiseUnaryPythonRefInfo(
+        "_refs.special.polygamma",
+        torch_opinfo_name="special.polygamma",
+        torch_opinfo_variant_name="special_polygamma_n_0",
+        supports_nvfuser=False,
+        op_db=op_db,
+    ),
+    ElementwiseUnaryPythonRefInfo(
         "_refs.special.spherical_bessel_j0",
         torch_opinfo_name="special.spherical_bessel_j0",
         supports_nvfuser=False,
