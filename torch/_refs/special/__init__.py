@@ -169,24 +169,6 @@ def ndtri(a: TensorLikeType) -> TensorLikeType:
     return prims.ndtri(a)
 
 
-def _trigamma(x: TensorLikeType) -> TensorLikeType:
-    sign = +1
-    result = 0
-    # sin_pi_x = 0
-    #if builtins.all(p < 0.5 for p in x):
-    if torch.all(x) < 0.5:
-        sign = -1
-        sin_pi_x = prims.sin(math.pi * x)
-        result -= (math.pi * math.pi) / (sin_pi_x * sin_pi_x)
-        x = 1 - x
-    for i in range(6):
-        result += 1 / (x * x)
-        x += 1
-    ixx = 1 / (x * x)
-    result += (1 + 1 / (2 * x) + ixx * (1 / 6 - ixx * (1 / 30 - ixx * (1 / 42)))) / x
-    return sign * result
-
-
 @register_decomposition(torch.ops.aten.special_polygamma)
 @out_wrapper()
 @elementwise_type_promotion_wrapper(
@@ -200,17 +182,8 @@ def polygamma(a: TensorLikeType, n: int) -> TensorLikeType:
     if utils.is_cpu_scalar_tensor(n):
         n = prims.device_put(n, device=a.device)
 
-    # if n == 0:
-    kk = prims.digamma(a)
-    # elif n == 1:
-    kkk = _trigamma(a)
-
-    # k = torch.where(n == 0, prims.digamma, torch.where(n == 1, 1, x))
-
-    x = torch.where(n % 2 == 0.0, 1.0, -1.0)
-    s = x * torch.exp(torch.lgamma(n + 1.0)) * torch.special.zeta((n + 1), a)
-
-    return torch.where(n == 0, kk, torch.where(n == 1, kkk, s))
+    x = torch.where(n % 2 == 0, 1, -1)
+    return x * torch.exp(torch.lgamma(n + 1.0)) * torch.special.zeta((n + 1), a)
 
 
 @_make_elementwise_unary_reference(
