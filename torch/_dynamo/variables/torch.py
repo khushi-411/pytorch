@@ -3485,9 +3485,29 @@ class TorchInGraphFunctionVariable(BaseTorchVariable):
             if cond_vt is None:
                 return check_impl(self, tx, None, message_vt, error_type)
 
-            scalar_vt = cond_vt.call_method(tx, "_is_all_true", [], {}).call_method(
-                tx, "item", [], {}
-            )
+            all_true_vt = cond_vt.call_method(tx, "_is_all_true", [], {})
+
+            if message_vt is None:
+                message_vt = ConstantVariable.create(None)
+            message_vt = message_vt.realize()
+            if (
+                not config.capture_scalar_outputs
+                and error_type is RuntimeError
+                and isinstance(message_vt, ConstantVariable)
+                and isinstance(message_vt.value, (str, type(None)))
+            ):
+                message = message_vt.value
+                if message is None:
+                    message = "Expected cond to be True, but got False."
+                tx.output.create_proxy(
+                    "call_function",
+                    torch._assert_async,
+                    (all_true_vt.as_proxy(), message),
+                    {},
+                )
+                return ConstantVariable.create(None)
+
+            scalar_vt = all_true_vt.call_method(tx, "item", [], {})
 
             return check_impl(self, tx, scalar_vt, message_vt, error_type)
 

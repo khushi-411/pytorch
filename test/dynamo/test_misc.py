@@ -2901,6 +2901,24 @@ not ___dict_contains('cccccccc', G['sys'].modules)""",
         x = torch.tensor([1.0, 2.0, 3.0])
         self.assertEqual(f(x), x + 1)
 
+    @torch._dynamo.config.patch(capture_scalar_outputs=False)
+    @parametrize("message", [None, "all must be positive"])
+    def test_check_tensor_all_no_graph_break(self, message):
+        backend = torch._dynamo.testing.EagerAndRecordGraphs()
+
+        @torch.compile(backend=backend, fullgraph=True)
+        def f(x):
+            torch._check_tensor_all(x > 0, message)
+            return x + 1
+
+        x = torch.tensor([1.0, 2.0, 3.0])
+        self.assertEqual(f(x), x + 1)
+        targets = [n.target for n in backend.graphs[0].graph.nodes]
+        self.assertIn(torch._assert_async, targets)
+        expected = message or "Expected cond to be True"
+        with self.assertRaisesRegex(RuntimeError, expected):
+            f(torch.tensor([1.0, -2.0, 3.0]))
+
     def test_check_tensor_predicate_raises_clear_error(self):
         @torch.compile(backend="eager")
         def f(x):
